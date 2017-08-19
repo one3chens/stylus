@@ -228,6 +228,33 @@ body.blocked .actions > .left-gutter {
   display: none;
 }
 
+#find-styles label {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  width: calc(100% - 3.5em);
+}
+
+#find-styles img {
+  max-height: 18px;
+  -webkit-filter: grayscale(1) brightness(1.15);
+  filter: grayscale(1) brightness(1.15);
+  transition: -webkit-filter .5s;
+  transition: filter .5s;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
+#find-styles a:not(:last-child) {
+  margin-right: 1em;
+}
+
+#find-styles a:hover img {
+  -webkit-filter: none;
+  filter: none;
+}
+
 /* Never shown, but can be enabled with a style */
 
 .enable,

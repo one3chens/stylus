@@ -74,7 +74,6 @@ function initPopup(url) {
   };
   setupLivePrefs();
 
-  $('#find-styles-link').onclick = handleEvent.openURLandHide;
   Object.assign($('#popup-manage-button'), {
     onclick: handleEvent.openManager,
     onmouseup: handleEvent.openManager,
@@ -96,16 +95,19 @@ function initPopup(url) {
       installed);
   }
 
-  // find styles link
-  $('#find-styles a').href =
-    'https://userstyles.org/styles/browse/all/' +
-    encodeURIComponent(url.startsWith('file:') ? 'file:' : url);
-
   if (!url) {
     document.body.classList.add('blocked');
     document.body.insertBefore(template.unavailableInfo, document.body.firstChild);
     return;
   }
+
+  $$('#find-styles a').forEach(a => (a.onclick = handleEvent.openURLandHide));
+  // freestyler: strip 'www.' when hostname has 3+ parts
+  $('#find-styles a[href*="freestyler"]').href +=
+    encodeURIComponent(new URL(url).hostname.replace(/^www\.(?=.+?\.)/, ''));
+  // userstyles: send just 'file:' for file:// links
+  $('#find-styles a[href*="userstyles"]').href +=
+    encodeURIComponent(url.startsWith('file:') ? 'file:' : url);
 
   getActiveTab().then(function ping(tab, retryCountdown = 10) {
     chrome.tabs.sendMessage(tab.id, {method: 'ping'}, {frameId: 0}, pong => {

@@ -53,9 +53,10 @@ var updater = {
 
     'ignoreDigest' option is set on the second manual individual update check on the manage page.
     */
+    const maybeUpdate = style.freestylerData ? maybeUpdateFWS : maybeUpdateUSO;
     return (ignoreDigest ? Promise.resolve() : calcStyleDigest(style))
-      .then(maybeFetchMd5)
-      .then(maybeFetchCode)
+      .then(checkIfEdited)
+      .then(maybeUpdate)
       .then(maybeSave)
       .then(saved => {
         observer(updater.UPDATED, saved);
@@ -67,25 +68,49 @@ var updater = {
         updater.log(updater.SKIPPED + ` (${err}) #${style.id} ${style.name}`);
       });
 
-    function maybeFetchMd5(digest) {
+    function checkIfEdited(digest) {
       if (!ignoreDigest && style.originalDigest && style.originalDigest !== digest) {
         return Promise.reject(updater.EDITED);
       }
-      return download(style.md5Url);
     }
 
-    function maybeFetchCode(md5) {
-      if (!md5 || md5.length !== 32) {
-        return Promise.reject(updater.ERROR_MD5);
-      }
-      if (md5 === style.originalMd5 && style.originalDigest && !ignoreDigest) {
-        return Promise.reject(updater.SAME_MD5);
-      }
-      return download(style.updateUrl);
+    function maybeUpdateUSO() {
+      return download(style.md5Url).then(md5 => {
+        if (!md5 || md5.length !== 32) {
+          return Promise.reject(updater.ERROR_MD5);
+        }
+        if (md5 === style.originalMd5 && style.originalDigest && !ignoreDigest) {
+          return Promise.reject(updater.SAME_MD5);
+        }
+        return download(style.updateUrl)
+          .then(text => tryJSONparse(text));
+      });
     }
 
-    function maybeSave(text) {
-      const json = tryJSONparse(text);
+    function maybeUpdateFWS() {
+      return updater.invokeFreestylerAPI('check_updates', {
+        json: [style.freestylerData]
+      }).then(data => (
+        !data || !data[0] ? Promise.reject(updater.ERROR_JSON) :
+        !data[0].isUpdated ? Promise.reject(updater.SAME_MD5) :
+        true
+      )).then(() => updater.invokeFreestylerAPI('get_updates', {
+        json: [style.freestylerData]
+      })).then(data => {
+        data = data && data[0] || {};
+        const newStyle = tryJSONparse(data.newJson);
+        if (newStyle) {
+          newStyle.freestylerData = {
+            id: data.id,
+            hash: data.newHash,
+            params: data.newParams,
+          };
+        }
+        return newStyle;
+      });
+    }
+
+    function maybeSave(json) {
       if (!styleJSONseemsValid(json)) {
         return Promise.reject(updater.ERROR_JSON);
       }
@@ -154,6 +179,18 @@ var updater = {
       });
     }
   })(),
+
+  invokeFreestylerAPI(method, params) {
+    return new Promise(resolve => {
+      const encodeParam = k =>
+        encodeURIComponent(k === 'json' ? JSON.stringify(params[k]) : params[k]);
+      const query = Object.keys(params)
+        .map(k => k + '=' + encodeParam(k))
+        .join('&');
+      download(`https://freestyler.ws/api/v2/${method}.php?${query}`)
+        .then(text => resolve(params.json ? tryJSONparse(text) : text));
+    });
+  }
 };
 
 updater.schedule();

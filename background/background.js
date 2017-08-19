@@ -1,4 +1,4 @@
-/* global dbExec, getStyles, saveStyle */
+/* global dbExec, getStyles, saveStyle, deleteStyle, calcStyleDigest */
 'use strict';
 
 // eslint-disable-next-line no-var
@@ -332,6 +332,29 @@ function onRuntimeMessage(request, sender, sendResponse) {
       download(request.url)
         .then(sendResponse)
         .catch(() => sendResponse(null));
+      return KEEP_CHANNEL_OPEN;
+
+    case 'openManager':
+      openURL({url: 'manage.html'}).then(function onReady(tab) {
+        if (tab && tab.status === 'complete') {
+          chrome.tabs.sendMessage(tab.id, {
+            method: 'highlightStyle',
+            id: request.styleId,
+          });
+        } else if (tab) {
+          setTimeout(() => chrome.tabs.get(tab.id, onReady), 100);
+        }
+      });
+      return;
+
+    case 'deleteStyle':
+      deleteStyle(request);
+      return;
+
+    case 'calcStyleDigest':
+      getStyles({id: request.id})
+        .then(([style]) => style && calcStyleDigest(style))
+        .then(sendResponse);
       return KEEP_CHANNEL_OPEN;
   }
 }
