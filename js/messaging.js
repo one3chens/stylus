@@ -210,7 +210,7 @@ function activateTab(tab) {
     new Promise(resolve => {
       chrome.windows.update(tab.windowId, {focused: true}, resolve);
     }),
-  ]);
+  ]).then(([tab]) => tab);
 }
 
 
