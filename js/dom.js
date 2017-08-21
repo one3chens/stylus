@@ -177,7 +177,12 @@ function animateElement(
       }
       resolve();
     });
-    element.classList.add(className);
+    if (element.classList.contains(className)) {
+      element.classList.remove(className);
+      setTimeout(() => element.classList.add(className));
+    } else {
+      element.classList.add(className);
+    }
   });
 }
 
